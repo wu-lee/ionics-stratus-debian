@@ -4,6 +4,8 @@ SUBLEVEL = 34
 EXTRAVERSION = .9
 NAME = Sheep on Meth
 
+-include Makefile.local
+
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
 # More info can be located in ./README
