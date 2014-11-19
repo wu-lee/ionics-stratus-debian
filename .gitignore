@@ -3,5 +3,7 @@
 /KERNEL/SOURCE/linux-*.tar.bz2
 /BOOTLOADER/SOURCE/u-boot-marvell-*.tar.gz
 /TOOLS/
+/DOCUMENTATION/
+/BINARIES.zip
 *~
 *#
