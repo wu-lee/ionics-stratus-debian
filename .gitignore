@@ -1,0 +1,6 @@
+/INITRD/initrd*.gz
+/FILESYSTEM/rootfs.tar.gz
+/KERNEL/SOURCE/linux-*.tar.bz2
+/BOOTLOADER/SOURCE/u-boot-marvell-*.tar.gz
+*~
+*#

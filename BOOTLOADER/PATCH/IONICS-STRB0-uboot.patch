@@ -1,0 +1,395 @@
+diff -Naur a/board/Marvell/sheevaplug/sheevaplug.c b/board/Marvell/sheevaplug/sheevaplug.c
+--- a/board/Marvell/sheevaplug/sheevaplug.c	2011-02-14 18:48:13.000000000 +0800
++++ b/board/Marvell/sheevaplug/sheevaplug.c	2011-05-04 14:49:48.000000000 +0800
+@@ -37,9 +37,15 @@
+ 	 * There are maximum 64 gpios controlled through 2 sets of registers
+ 	 * the  below configuration configures mainly initial LED status
+ 	 */
+-	kw_config_gpio(SHEEVAPLUG_OE_VAL_LOW,
+-			SHEEVAPLUG_OE_VAL_HIGH,
+-			SHEEVAPLUG_OE_LOW, SHEEVAPLUG_OE_HIGH);
++	//kw_config_gpio(SHEEVAPLUG_OE_VAL_LOW,
++			//SHEEVAPLUG_OE_VAL_HIGH,
++			//SHEEVAPLUG_OE_LOW, SHEEVAPLUG_OE_HIGH);
++
++        /* Initial GPIO configuration for IONICS board */
++	kw_config_gpio( 0xffdfffff,
++			0xffffee6e,
++			0x00000000, 
++                        0x00000000 );
+ 
+ 	/* Multi-Purpose Pins Functionality configuration */
+ 	u32 kwmpp_config[] = {
+diff -Naur a/common/cmd_ionics.c b/common/cmd_ionics.c
+--- a/common/cmd_ionics.c	1970-01-01 08:00:00.000000000 +0800
++++ b/common/cmd_ionics.c	2011-05-04 14:49:48.000000000 +0800
+@@ -0,0 +1,254 @@
++/*
++ * (C) Copyright 2011
++ * IONICS-EMS Inc.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of
++ * the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ */
++
++/* IONICS Board Model: STRATUS
++ * Description: The ff are the required settings during u-boot level.
++ * 
++ * =====================================================================
++ *    MPP#      DEVICE         LABEL             STATUS        REMARKS
++ * =====================================================================    
++ *     40        LED      led1/power             enabled 
++ *     44        LED      led2/wireless          enabled
++ *     39        LED      led3/zwave/zigbee      enabled
++ *     36        LED      led4/status            blink
++ *     21        USB      port 1                 enabled 
++ *     32        USB      port 2                 enabled
++ *     48        WIFI     power down             disabled
++ *     49        WIFI     host wake-up           disabled
++ *     42        WIFI     MAC wake-up            disabled
++ *
++ */
++
++
++#include <common.h>
++#include <command.h>
++
++#define GPIO_DATA_OUT_REGISTER 			0xf1010100
++#define GPIO_DATA_OUT_EN_CTRL_REGISTER 		0xf1010104
++#define GPIO_BLINK_EN_REGISTER 			0xf1010108
++#define GPIO_HIGH_DATA_OUT_REGISTER 		0xf1010140
++#define GPIO_HIGH_DATA_OUT_EN_CTRL_REGISTER 	0xf1010144
++#define GPIO_HIGH_BLINK_EN_REGISTER 		0xf1010148
++
++
++void mode_select ( int mode ) 
++{
++
++   	switch ( mode ) {
++
++   	case 0:
++         	*((ulong *) GPIO_HIGH_BLINK_EN_REGISTER) = 0x00000010;
++         	break;
++   	case 1:
++         	*((ulong *) GPIO_HIGH_BLINK_EN_REGISTER) = 0x00000100;
++         	break;
++   	case 2:
++         	*((ulong *) GPIO_HIGH_BLINK_EN_REGISTER) = 0x00000000;
++         	*((ulong *) GPIO_HIGH_DATA_OUT_REGISTER) = 0xffffffff;
++         	break;
++   	}
++
++}
++
++void led_test ( int led_number ) 
++{
++
++        *((ulong *) GPIO_HIGH_BLINK_EN_REGISTER) = 0x00000000;
++
++   	switch ( led_number ) {
++
++        /* led 1 */
++   	case 0:
++                /* turn-on */
++         	*((ulong *) GPIO_HIGH_DATA_OUT_REGISTER) = 0xfffffeff; 
++         	break;
++   	case 1:
++                /* turn-off */
++         	*((ulong *) GPIO_HIGH_DATA_OUT_REGISTER) = 0xffffffff;
++         	break;
++   	case 2:
++                /* blink */
++         	*((ulong *) GPIO_HIGH_BLINK_EN_REGISTER) = 0x00000100;
++         	break;
++
++        /* led 2 */
++   	case 3:
++                /* turn-on */
++         	*((ulong *) GPIO_HIGH_DATA_OUT_REGISTER) = 0xffffefff; 
++         	break;
++   	case 4:
++                /* turn-off */
++         	*((ulong *) GPIO_HIGH_DATA_OUT_REGISTER) = 0xffffffff;
++         	break;
++   	case 5:
++                /* blink */
++         	*((ulong *) GPIO_HIGH_BLINK_EN_REGISTER) = 0x00001000;
++         	break;
++
++        /* led 3 */
++   	case 6:
++                /* turn-on */
++         	*((ulong *) GPIO_HIGH_DATA_OUT_REGISTER) = 0xffffff7f; 
++         	break;
++   	case 7:
++                /* turn-off */
++         	*((ulong *) GPIO_HIGH_DATA_OUT_REGISTER) = 0xffffffff;
++         	break;
++   	case 8:
++                /* blink */
++         	*((ulong *) GPIO_HIGH_BLINK_EN_REGISTER) = 0x00000080;
++         	break;
++
++        /* led 4 */
++   	case 9:
++                /* turn-on */
++         	*((ulong *) GPIO_HIGH_DATA_OUT_REGISTER) = 0xffffffef; 
++         	break;
++   	case 10:
++                /* turn-off */
++         	*((ulong *) GPIO_HIGH_DATA_OUT_REGISTER) = 0xffffffff;
++         	break;
++   	case 11:
++                /* blink */
++         	*((ulong *) GPIO_HIGH_BLINK_EN_REGISTER) = 0x00000010;
++         	break;
++   	}
++
++}
++
++
++int init_ionics ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
++{
++
++ 	*((ulong *) GPIO_DATA_OUT_REGISTER) 			= 0xffdfffff; // MPP 0-31
++   	*((ulong *) GPIO_DATA_OUT_EN_CTRL_REGISTER) 		= 0x00000000; // high Z state
++   	*((ulong *) GPIO_BLINK_EN_REGISTER) 			= 0x00000000; // blink state
++   	*((ulong *) GPIO_HIGH_DATA_OUT_REGISTER) 		= 0xffffee6e; // MPP 32-63
++   	*((ulong *) GPIO_HIGH_DATA_OUT_EN_CTRL_REGISTER) 	= 0x00000000; // high Z state
++   	*((ulong *) GPIO_HIGH_BLINK_EN_REGISTER) 		= 0x00000000; // blink state
++
++
++	if (argc < 2)
++		return cmd_usage(cmdtp);
++
++        /* mode selection */
++        if (strncmp(argv[1], "mode", 5) == 0) {
++                       
++                if (strncmp(argv[2], "bootup", 5) == 0)
++                      mode_select(0);
++
++               	else if (strncmp(argv[2], "flashing", 5) == 0)
++                      mode_select(1);
++
++               	else if (strncmp(argv[2], "shutdown", 5) == 0)
++                      mode_select(2);
++              
++                else {
++                      printf("\nbootup    -  predefined GPIO config for booting-up");
++                      printf("\nflashing  -  predefined GPIO config for flashing\n\n");
++                }
++        }
++
++        
++        /* led test */
++        else if (strncmp(argv[1], "led", 5) == 0) {
++                       
++                if (strncmp(argv[2], "1", 5) == 0) {
++
++                       if (strncmp(argv[3], "on", 5) == 0)
++                           led_test(0);
++
++                       else if (strncmp(argv[3], "off", 5) == 0)
++                           led_test(1);
++
++                       else if (strncmp(argv[3], "blink", 5) == 0)
++                           led_test(2);
++                      
++                       else
++                           printf("\nled <number> on/off/blink\n\n");
++                }
++
++                else if (strncmp(argv[2], "2", 5) == 0) {
++
++                       if (strncmp(argv[3], "on", 5) == 0)
++                           led_test(3);
++
++                       else if (strncmp(argv[3], "off", 5) == 0)
++                           led_test(4);
++
++                       else if (strncmp(argv[3], "blink", 5) == 0)
++                           led_test(5);
++
++                       else
++                           printf("\nled <number> on/off/blink\n\n");
++                }
++
++                else if (strncmp(argv[2], "3", 5) == 0) {
++
++                       if (strncmp(argv[3], "on", 5) == 0)
++                           led_test(6);
++
++                       else if (strncmp(argv[3], "off", 5) == 0)
++                           led_test(7);
++
++                       else if (strncmp(argv[3], "blink", 5) == 0)
++                           led_test(8);
++
++                       else
++                           printf("\nled <number> on/off/blink\n\n");
++                }
++
++                else if (strncmp(argv[2], "4", 5) == 0) {
++
++                       if (strncmp(argv[3], "on", 5) == 0)
++                           led_test(9);
++
++                       else if (strncmp(argv[3], "off", 5) == 0)
++                           led_test(10);
++
++                       else if (strncmp(argv[3], "blink", 5) == 0)
++                           led_test(11);
++
++                       else
++                           printf("\nled <number> on/off/blink\n\n");
++                }
++
++                else
++                      printf("\nled <number> on/off/blink\n\n");
++
++        }
++
++
++   	return(0);
++}
++
++/* -------------------------------------------------------------------- */
++
++U_BOOT_CMD(
++	init_ionics,	5,	1,	init_ionics,
++	"Initialize IONICS board specific settings",
++	"\nmode <name>          - Predefined configuration"
++        "\nled  <number>        - LED Test\n\n"
++);
++
++
++
++
++
++
++
++
++
+diff -Naur a/common/Makefile b/common/Makefile
+--- a/common/Makefile	2011-02-14 18:48:13.000000000 +0800
++++ b/common/Makefile	2011-05-04 14:49:48.000000000 +0800
+@@ -164,7 +164,7 @@
+ COBJS-$(CONFIG_MODEM_SUPPORT) += modem.o
+ COBJS-$(CONFIG_UPDATE_TFTP) += update.o
+ COBJS-$(CONFIG_USB_KEYBOARD) += usb_kbd.o
+-
++COBJS-y += cmd_ionics.o
+ 
+ COBJS	:= $(sort $(COBJS-y))
+ XCOBJS	:= $(sort $(XCOBJS-y))
+diff -Naur a/include/configs/sheevaplug.h b/include/configs/sheevaplug.h
+--- a/include/configs/sheevaplug.h	2011-02-14 18:48:13.000000000 +0800
++++ b/include/configs/sheevaplug.h	2011-06-27 10:56:31.187328000 +0800
+@@ -28,7 +28,7 @@
+ /*
+  * Version number information
+  */
+-#define CONFIG_IDENT_STRING	"\nMarvell-Sheevaplug"
++#define CONFIG_IDENT_STRING	"\nIONICS-PlugComputer STRATUS B0"
+ 
+ /*
+  * High Level Configuration Options (easy to change)
+@@ -36,7 +36,7 @@
+ #define CONFIG_FEROCEON_88FR131	1	/* CPU Core subversion */
+ #define CONFIG_KIRKWOOD		1	/* SOC Family Name */
+ #define CONFIG_KW88F6281	1	/* SOC Name */
+-#define CONFIG_MACH_SHEEVAPLUG	/* Machine type */
++#define CONFIG_MACH_SHEEVAPLUG		/* Machine type */
+ #define CONFIG_SKIP_LOWLEVEL_INIT	/* disable board lowlevel_init */
+ 
+ /*
+@@ -61,7 +61,7 @@
+  */
+ #ifdef CONFIG_CMD_NAND
+ #define CONFIG_ENV_IS_IN_NAND		1
+-#define CONFIG_ENV_SECT_SIZE		0x20000	/* 128K */
++#define CONFIG_ENV_SECT_SIZE		0x20000	/* 128k */
+ #else
+ #define CONFIG_ENV_IS_NOWHERE		1	/* if env in SDRAM */
+ #endif
+@@ -76,18 +76,29 @@
+ /*
+  * Default environment variables
+  */
+-#define CONFIG_BOOTCOMMAND		"${x_bootcmd_kernel}; "	\
+-	"setenv bootargs ${x_bootargs} ${x_bootargs_root}; "	\
+-	"${x_bootcmd_usb}; bootm 0x6400000;"
+-
+-#define CONFIG_MTDPARTS		"orion_nand:512k(uboot),"	\
+-	"3m@1m(kernel),1m@4m(psm),13m@5m(rootfs) rw\0"
+-
+-#define CONFIG_EXTRA_ENV_SETTINGS	"x_bootargs=console"	\
+-	"=ttyS0,115200 mtdparts="CONFIG_MTDPARTS	\
+-	"x_bootcmd_kernel=nand read 0x6400000 0x100000 0x300000\0" \
+-	"x_bootcmd_usb=usb start\0" \
+-	"x_bootargs_root=root=/dev/mtdblock3 rw rootfstype=jffs2\0"
++#define CONFIG_BOOTCOMMAND		"run bootcmd"
++
++#define CONFIG_MTDPARTS			"mtdparts=orion_nand:1m@0m(u-boot),4m@1m(kernel),5m@5m(pluginfo),-(rootfs)"
++
++#define CONFIG_EXTRA_ENV_SETTINGS	"mtdids=nand0=orion_nand\0" \
++	"mtdparts=mtdparts=orion_nand:1m@0m(u-boot),4m@1m(kernel),5m@5m(pluginfo),-(rootfs)\0" \
++	"nand_kernel=nand read 0x800000 0x100000 0x400000\0" \
++	"set_ubi_bootargs=setenv bootargs $(ubi_bootargs) $(mtdparts) root=ubi0:rootfs\0" \
++	"ubi_bootargs=console=ttyS0,115200 rootfstype=ubifs ubi.mtd=3 ro noswap\0" \
++	"ubi_initrd=ubi part pluginfo; ubifsmount pluginfo; ubifsload 0x1200000 initrd.usr\0" \
++	"ubi_boot=init_ionics mode bootup ; run nand_kernel ; run set_ubi_bootargs ; bootm 0x800000\0" \
++	"ubi_bootcmd=setenv bootcmd $(ubi_boot); saveenv\0" \
++	"load_initrd_mfg=usb start; fatload usb 0 0x800000 uImage; fatload usb 0 0x1200000 initrd.mfg\0" \
++	"load_initrd_usr=usb start; fatload usb 0 0x800000 uImage; run ubi_initrd\0" \
++	"reflash_mfg=init_ionics mode flashing ; run load_initrd_mfg ; setenv bootargs console=ttyS0,115200 $(mtdparts); bootm 0x800000 0x1200000\0" \
++	"reflash_usr=init_ionics mode flashing ; run load_initrd_usr ; setenv bootargs console=ttyS0,115200 $(mtdparts); bootm 0x800000 0x1200000\0" \
++	"bootcmd=run ubi_bootcmd; run reflash_mfg\0" \
++        "ethaddr=00:26:db:00:00:00\0" \
++	"ionicsplug_part=xxxxxxxxxx\0" \
++	"ionicsplug_serial=xxxxxxxxxx\0" \
++	"ionicsplug_model=xxxxxxxxxx\0" \
++	"ionicsplug_board=xxxxxxxxxx\0" \
++	"ionicsplug_firmware=xxxxxxxxxx\0"
+ 
+ /*
+  * Ethernet Driver configuration
+diff -Naur a/tools/env/fw_env.h b/tools/env/fw_env.h
+--- a/tools/env/fw_env.h	2011-02-14 18:48:13.000000000 +0800
++++ b/tools/env/fw_env.h	2011-05-04 14:49:48.000000000 +0800
+@@ -30,11 +30,11 @@
+ #define CONFIG_FILE     "/etc/fw_env.config"
+ 
+ #define HAVE_REDUND /* For systems with 2 env sectors */
+-#define DEVICE1_NAME      "/dev/mtd1"
++#define DEVICE1_NAME      "/dev/mtd0"
+ #define DEVICE2_NAME      "/dev/mtd2"
+-#define DEVICE1_OFFSET    0x0000
+-#define ENV1_SIZE         0x4000
+-#define DEVICE1_ESIZE     0x4000
++#define DEVICE1_OFFSET    0x60000
++#define ENV1_SIZE         0x20000
++#define DEVICE1_ESIZE     0x20000
+ #define DEVICE2_OFFSET    0x0000
+ #define ENV2_SIZE         0x4000
+ #define DEVICE2_ESIZE     0x4000
+diff -Naur a/tools/Makefile b/tools/Makefile
+--- a/tools/Makefile	2011-02-14 18:48:13.000000000 +0800
++++ b/tools/Makefile	2011-05-04 14:49:48.000000000 +0800
+@@ -21,7 +21,7 @@
+ # MA 02111-1307 USA
+ #
+ 
+-TOOLSUBDIRS =
++TOOLSUBDIRS = env
+ 
+ #
+ # Include this after HOSTOS HOSTARCH check
