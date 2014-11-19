@@ -44,6 +44,12 @@ config LIBERTAS_THINFIRM_USB
 	---help---
 	  A driver for Marvell Libertas 8388 USB devices using thinfirm.
 
+config LIBERTAS_UAP
+	tristate "Marvell Libertas 8688 micro-AP support"
+	depends on LIBERTAS && MMC
+	---help---
+	  A driver for Marvell Libertas 8688 SDIO micro-AP support.
+
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
 	depends on ISA_DMA_API && (PCI || BROKEN)

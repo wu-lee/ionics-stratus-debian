@@ -1063,8 +1063,10 @@ int ubifs_rcvry_gc_commit(struct ubifs_info *c)
 	}
 	err = ubifs_find_dirty_leb(c, &lp, wbuf->offs, 2);
 	if (err) {
-		if (err == -ENOSPC)
-			dbg_err("could not find a dirty LEB");
+		if (err == -ENOSPC) {
+			dbg_rcvry("could not find a dirty LEB");
+                        goto find_free;
+                }
 		return err;
 	}
 	ubifs_assert(!(lp.flags & LPROPS_INDEX));

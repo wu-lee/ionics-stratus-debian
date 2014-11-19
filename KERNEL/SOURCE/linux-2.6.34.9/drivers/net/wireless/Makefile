@@ -36,6 +36,8 @@ obj-$(CONFIG_LIBERTAS)		+= libertas/
 
 obj-$(CONFIG_LIBERTAS_THINFIRM)	+= libertas_tf/
 
+obj-$(CONFIG_LIBERTAS_UAP)	+= libertas_uap/
+
 obj-$(CONFIG_ADM8211)	+= adm8211.o
 
 obj-$(CONFIG_MWL8K)	+= mwl8k.o
