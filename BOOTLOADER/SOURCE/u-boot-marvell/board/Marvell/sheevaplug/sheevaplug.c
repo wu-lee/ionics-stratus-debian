@@ -37,9 +37,15 @@ int board_early_init_f(void)
 	 * There are maximum 64 gpios controlled through 2 sets of registers
 	 * the  below configuration configures mainly initial LED status
 	 */
-	kw_config_gpio(SHEEVAPLUG_OE_VAL_LOW,
-			SHEEVAPLUG_OE_VAL_HIGH,
-			SHEEVAPLUG_OE_LOW, SHEEVAPLUG_OE_HIGH);
+	//kw_config_gpio(SHEEVAPLUG_OE_VAL_LOW,
+			//SHEEVAPLUG_OE_VAL_HIGH,
+			//SHEEVAPLUG_OE_LOW, SHEEVAPLUG_OE_HIGH);
+
+        /* Initial GPIO configuration for IONICS board */
+	kw_config_gpio( 0xffdfffff,
+			0xffffee6e,
+			0x00000000, 
+                        0x00000000 );
 
 	/* Multi-Purpose Pins Functionality configuration */
 	u32 kwmpp_config[] = {
