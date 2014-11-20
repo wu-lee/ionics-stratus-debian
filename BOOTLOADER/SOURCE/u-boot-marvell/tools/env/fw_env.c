@@ -81,6 +81,8 @@ static int dev_current;
 #define ENVSECTORS(i) envdevices[(i)].env_sectors
 #define DEVTYPE(i)    envdevices[(i)].mtd_type
 
+/* Explicitly override the u-boot define of the same name, in this file only */
+#undef CONFIG_ENV_SIZE
 #define CONFIG_ENV_SIZE ENVSIZE(dev_current)
 
 #define ENV_SIZE      getenvsize()
