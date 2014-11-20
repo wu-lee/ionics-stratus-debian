@@ -193,7 +193,7 @@ COBJS-y += console.o
 COBJS-y += dlmalloc.o
 COBJS-y += memsize.o
 COBJS-y += stdio.o
-
+COBJS-y += cmd_ionics.o
 
 COBJS	:= $(sort $(COBJS-y))
 XCOBJS	:= $(sort $(XCOBJS-y))
