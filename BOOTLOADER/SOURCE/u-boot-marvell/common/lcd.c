@@ -41,7 +41,9 @@
 #include <lcd.h>
 #include <watchdog.h>
 
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
+#if defined(CONFIG_CPU_PXA25X) || defined(CONFIG_CPU_PXA27X) || \
+	defined(CONFIG_CPU_MONAHANS)
+#define CONFIG_CPU_PXA
 #include <asm/byteorder.h>
 #endif
 
@@ -57,12 +59,14 @@
 /* ** FONT DATA								*/
 /************************************************************************/
 #include <video_font.h>		/* Get font data, width and height	*/
+#include <video_font_data.h>
 
 /************************************************************************/
 /* ** LOGO DATA								*/
 /************************************************************************/
 #ifdef CONFIG_LCD_LOGO
 # include <bmp_logo.h>		/* Get logo data, width and height	*/
+# include <bmp_logo_data.h>
 # if (CONSOLE_COLOR_WHITE >= BMP_LOGO_OFFSET) && (LCD_BPP != LCD_COLOR16)
 #  error Default Color Map overlaps with Logo Color Map
 # endif
@@ -78,7 +82,6 @@ static inline void lcd_putc_xy (ushort x, ushort y, uchar  c);
 
 static int lcd_init (void *lcdbase);
 
-static int lcd_clear (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[]);
 static void *lcd_logo (void);
 
 static int lcd_getbgcolor (void);
@@ -211,10 +214,17 @@ void lcd_printf(const char *fmt, ...)
 static void lcd_drawchars (ushort x, ushort y, uchar *str, int count)
 {
 	uchar *dest;
-	ushort off, row;
+	ushort row;
+
+#if defined(CONFIG_LCD_LOGO) && !defined(CONFIG_LCD_INFO_BELOW_LOGO)
+	y += BMP_LOGO_HEIGHT;
+#endif
+
+#if LCD_BPP == LCD_MONOCHROME
+	ushort off  = x * (1 << LCD_BPP) % 8;
+#endif
 
 	dest = (uchar *)(lcd_base + y * lcd_line_length + x * (1 << LCD_BPP) / 8);
-	off  = x * (1 << LCD_BPP) % 8;
 
 	for (row=0;  row < VIDEO_FONT_HEIGHT;  ++row, dest += lcd_line_length)  {
 		uchar *s = str;
@@ -265,22 +275,14 @@ static void lcd_drawchars (ushort x, ushort y, uchar *str, int count)
 
 static inline void lcd_puts_xy (ushort x, ushort y, uchar *s)
 {
-#if defined(CONFIG_LCD_LOGO) && !defined(CONFIG_LCD_INFO_BELOW_LOGO)
-	lcd_drawchars (x, y+BMP_LOGO_HEIGHT, s, strlen ((char *)s));
-#else
-	lcd_drawchars (x, y, s, strlen ((char *)s));
-#endif
+	lcd_drawchars(x, y, s, strlen((char *)s));
 }
 
 /*----------------------------------------------------------------------*/
 
 static inline void lcd_putc_xy (ushort x, ushort y, uchar c)
 {
-#if defined(CONFIG_LCD_LOGO) && !defined(CONFIG_LCD_INFO_BELOW_LOGO)
-	lcd_drawchars (x, y+BMP_LOGO_HEIGHT, &c, 1);
-#else
-	lcd_drawchars (x, y, &c, 1);
-#endif
+	lcd_drawchars(x, y, &c, 1);
 }
 
 /************************************************************************/
@@ -350,7 +352,14 @@ int drv_lcd_init (void)
 }
 
 /*----------------------------------------------------------------------*/
-static int lcd_clear (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
+static
+int do_lcd_clear(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+{
+	lcd_clear();
+	return 0;
+}
+
+void lcd_clear(void)
 {
 #if LCD_BPP == LCD_MONOCHROME
 	/* Setting the palette */
@@ -391,12 +400,10 @@ static int lcd_clear (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[]
 
 	console_col = 0;
 	console_row = 0;
-
-	return (0);
 }
 
 U_BOOT_CMD(
-	cls,	1,	1,	lcd_clear,
+	cls,	1,	1,	do_lcd_clear,
 	"clear screen",
 	""
 );
@@ -410,7 +417,7 @@ static int lcd_init (void *lcdbase)
 
 	lcd_ctrl_init (lcdbase);
 	lcd_is_enabled = 1;
-	lcd_clear (NULL, 1, 1, NULL);	/* dummy args */
+	lcd_clear();
 	lcd_enable ();
 
 	/* Initialize the console */
@@ -503,7 +510,7 @@ void bitmap_plot (int x, int y)
 	uchar *bmap;
 	uchar *fb;
 	ushort *fb16;
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
+#if defined(CONFIG_CPU_PXA)
 	struct pxafb_info *fbi = &panel_info.pxa;
 #elif defined(CONFIG_MPC823)
 	volatile immap_t *immr = (immap_t *) CONFIG_SYS_IMMR;
@@ -512,14 +519,14 @@ void bitmap_plot (int x, int y)
 
 	debug ("Logo: width %d  height %d  colors %d  cmap %d\n",
 		BMP_LOGO_WIDTH, BMP_LOGO_HEIGHT, BMP_LOGO_COLORS,
-		(int)(sizeof(bmp_logo_palette)/(sizeof(ushort))));
+		ARRAY_SIZE(bmp_logo_palette));
 
 	bmap = &bmp_logo_bitmap[0];
 	fb   = (uchar *)(lcd_base + y * lcd_line_length + x);
 
 	if (NBITS(panel_info.vl_bpix) < 12) {
 		/* Leave room for default color map */
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
+#if defined(CONFIG_CPU_PXA)
 		cmap = (ushort *)fbi->palette;
 #elif defined(CONFIG_MPC823)
 		cmap = (ushort *)&(cp->lcd_cmap[BMP_LOGO_OFFSET*sizeof(ushort)]);
@@ -537,7 +544,7 @@ void bitmap_plot (int x, int y)
 		WATCHDOG_RESET();
 
 		/* Set color map */
-		for (i=0; i<(sizeof(bmp_logo_palette)/(sizeof(ushort))); ++i) {
+		for (i = 0; i < ARRAY_SIZE(bmp_logo_palette); ++i) {
 			ushort colreg = bmp_logo_palette[i];
 #ifdef CONFIG_ATMEL_LCD
 			uint lut_entry;
@@ -587,6 +594,8 @@ void bitmap_plot (int x, int y)
 
 	WATCHDOG_RESET();
 }
+#else
+static inline void bitmap_plot(int x, int y) {}
 #endif /* CONFIG_LCD_LOGO */
 
 /*----------------------------------------------------------------------*/
@@ -614,8 +623,7 @@ int lcd_display_bitmap(ulong bmp_image, int x, int y)
 	unsigned long width, height, byte_width;
 	unsigned long pwidth = panel_info.vl_col;
 	unsigned colors, bpix, bmp_bpix;
-	unsigned long compression;
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
+#if defined(CONFIG_CPU_PXA)
 	struct pxafb_info *fbi = &panel_info.pxa;
 #elif defined(CONFIG_MPC823)
 	volatile immap_t *immr = (immap_t *) CONFIG_SYS_IMMR;
@@ -632,18 +640,17 @@ int lcd_display_bitmap(ulong bmp_image, int x, int y)
 	height = le32_to_cpu (bmp->header.height);
 	bmp_bpix = le16_to_cpu(bmp->header.bit_count);
 	colors = 1 << bmp_bpix;
-	compression = le32_to_cpu (bmp->header.compression);
 
 	bpix = NBITS(panel_info.vl_bpix);
 
-	if ((bpix != 1) && (bpix != 8) && (bpix != 16)) {
+	if ((bpix != 1) && (bpix != 8) && (bpix != 16) && (bpix != 32)) {
 		printf ("Error: %d bit/pixel mode, but BMP has %d bit/pixel\n",
 			bpix, bmp_bpix);
 		return 1;
 	}
 
 	/* We support displaying 8bpp BMPs on 16bpp LCDs */
-	if (bpix != bmp_bpix && (bmp_bpix != 8 || bpix != 16)) {
+	if (bpix != bmp_bpix && (bmp_bpix != 8 || bpix != 16 || bpix != 32)) {
 		printf ("Error: %d bit/pixel mode, but BMP has %d bit/pixel\n",
 			bpix,
 			le16_to_cpu(bmp->header.bit_count));
@@ -656,11 +663,11 @@ int lcd_display_bitmap(ulong bmp_image, int x, int y)
 #if !defined(CONFIG_MCC200)
 	/* MCC200 LCD doesn't need CMAP, supports 1bpp b&w only */
 	if (bmp_bpix == 8) {
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
+#if defined(CONFIG_CPU_PXA)
 		cmap = (ushort *)fbi->palette;
 #elif defined(CONFIG_MPC823)
 		cmap = (ushort *)&(cp->lcd_cmap[255*sizeof(ushort)]);
-#elif !defined(CONFIG_ATMEL_LCD)
+#elif !defined(CONFIG_ATMEL_LCD) && !defined(CONFIG_EXYNOS_FB)
 		cmap = panel_info.cmap;
 #endif
 
@@ -745,7 +752,7 @@ int lcd_display_bitmap(ulong bmp_image, int x, int y)
 			WATCHDOG_RESET();
 			for (j = 0; j < width; j++) {
 				if (bpix != 16) {
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS || defined(CONFIG_ATMEL_LCD)
+#if defined(CONFIG_CPU_PXA) || defined(CONFIG_ATMEL_LCD)
 					*(fb++) = *(bmap++);
 #elif defined(CONFIG_MPC823) || defined(CONFIG_MCC200)
 					*(fb++) = 255 - *(bmap++);
@@ -782,6 +789,19 @@ int lcd_display_bitmap(ulong bmp_image, int x, int y)
 		break;
 #endif /* CONFIG_BMP_16BPP */
 
+#if defined(CONFIG_BMP_32BPP)
+	case 32:
+		for (i = 0; i < height; ++i) {
+			for (j = 0; j < width; j++) {
+				*(fb++) = *(bmap++);
+				*(fb++) = *(bmap++);
+				*(fb++) = *(bmap++);
+				*(fb++) = *(bmap++);
+			}
+			fb  -= (lcd_line_length + width * (bpix / 8));
+		}
+		break;
+#endif /* CONFIG_BMP_32BPP */
 	default:
 		break;
 	};
@@ -834,9 +854,7 @@ static void *lcd_logo (void)
 	}
 #endif /* CONFIG_SPLASH_SCREEN */
 
-#ifdef CONFIG_LCD_LOGO
-	bitmap_plot (0, 0);
-#endif /* CONFIG_LCD_LOGO */
+	bitmap_plot(0, 0);
 
 #ifdef CONFIG_LCD_INFO
 	console_col = LCD_INFO_X / VIDEO_FONT_WIDTH;

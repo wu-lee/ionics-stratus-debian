@@ -25,17 +25,10 @@
 
 #include <config.h>
 #include <version.h>
-
-_TEXT_BASE:
-	.word	CONFIG_SYS_TEXT_BASE	@ sdram load addr from config file
-
-.global invalidate_dcache
-invalidate_dcache:
-	mov pc, lr
+#include <linux/linkage.h>
 
 	.align	5
-.global reset_cpu
-reset_cpu:
+ENTRY(reset_cpu)
 	ldr	r1, rstctl			@ get addr for global reset
 						@ reg
 	ldr	r3, [r1]
@@ -46,20 +39,4 @@ _loop_forever:
 	b	_loop_forever
 rstctl:
 	.word	PRM_RSTCTRL
-
-.globl lowlevel_init
-lowlevel_init:
-	ldr	sp, SRAM_STACK
-	str	ip, [sp]
-	mov	ip, lr
-	bl	s_init				@ go setup pll, mux & memory
-	ldr	ip, [sp]
-	mov	lr, ip
-
-	mov	pc, lr				@ back to arch calling code
-
-	@ the literal pools origin
-	.ltorg
-
-SRAM_STACK:
-	.word LOW_LEVEL_SRAM_STACK
+ENDPROC(reset_cpu)

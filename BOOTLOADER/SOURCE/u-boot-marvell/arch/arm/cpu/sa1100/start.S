@@ -4,7 +4,7 @@
  *  Copyright (C) 1998	Dan Malek <dmalek@jlc.net>
  *  Copyright (C) 1999	Magnus Damm <kieraypc01.p.y.kie.era.ericsson.se>
  *  Copyright (C) 2000	Wolfgang Denk <wd@denx.de>
- *  Copyright (c) 2001	Alex Züpke <azu@sysgo.de>
+ *  Copyright (c) 2001	Alex ZÃ¼pke <azu@sysgo.de>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -88,6 +88,10 @@ _bss_start_ofs:
 
 .globl _bss_end_ofs
 _bss_end_ofs:
+	.word __bss_end__ - _start
+
+.globl _end_ofs
+_end_ofs:
 	.word _end - _start
 
 #ifdef CONFIG_USE_IRQ
@@ -167,7 +171,7 @@ copy_loop:
 	cmp	r0, r2			/* until source end address [r2]    */
 	blo	copy_loop
 
-#ifndef CONFIG_PRELOADER
+#ifndef CONFIG_SPL_BUILD
 	/*
 	 * fix .rel.dyn relocations
 	 */
@@ -209,7 +213,7 @@ fixnext:
 #endif
 
 clear_bss:
-#ifndef CONFIG_PRELOADER
+#ifndef CONFIG_SPL_BUILD
 	ldr	r0, _bss_start_ofs
 	ldr	r1, _bss_end_ofs
 	mov	r4, r6			/* reloc addr */
@@ -259,7 +263,7 @@ _dynsym_start_ofs:
  */
 
 
-/* Interupt-Controller base address */
+/* Interrupt-Controller base address */
 IC_BASE:	.word	0x90050000
 #define ICMR	0x04
 

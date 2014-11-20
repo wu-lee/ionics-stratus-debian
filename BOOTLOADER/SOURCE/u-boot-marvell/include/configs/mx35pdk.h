@@ -34,15 +34,13 @@
 #define CONFIG_MX35_HCLK_FREQ	24000000
 
 #define CONFIG_DISPLAY_CPUINFO
-#define CONFIG_DISPLAY_BOARDINFO
 
 /* Set TEXT at the beginning of the NOR flash */
 #define CONFIG_SYS_TEXT_BASE	0xA0000000
-
-#define CONFIG_SYS_64BIT_VSPRINTF
+#define CONFIG_SYS_CACHELINE_SIZE	32
 
 #define CONFIG_BOARD_EARLY_INIT_F
-#define BOARD_LATE_INIT
+#define CONFIG_BOARD_LATE_INIT
 
 #define CONFIG_CMDLINE_TAG		/* enable passing of ATAGs */
 #define CONFIG_REVISION_TAG
@@ -61,16 +59,18 @@
 #define CONFIG_I2C_MXC
 #define CONFIG_SYS_I2C_MX35_PORT1
 #define CONFIG_SYS_I2C_SPEED		100000
-#define CONFIG_SYS_I2C_SLAVE		0xfe
 #define CONFIG_MXC_SPI
+#define CONFIG_MXC_GPIO
 
 
 /*
  * PMIC Configs
  */
-#define CONFIG_FSL_PMIC
-#define CONFIG_FSL_PMIC_I2C
+#define CONFIG_PMIC
+#define CONFIG_PMIC_I2C
+#define CONFIG_PMIC_FSL
 #define CONFIG_SYS_FSL_PMIC_I2C_ADDR	0x08
+#define CONFIG_RTC_MC13XXX
 
 /*
  * MFD MC9SDZ60
@@ -82,13 +82,12 @@
  * UART (console)
  */
 #define CONFIG_MXC_UART
-#define CONFIG_SYS_MX35_UART1
+#define CONFIG_MXC_UART_BASE	UART1_BASE
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
 #define CONFIG_CONS_INDEX	1
 #define CONFIG_BAUDRATE		115200
-#define CONFIG_SYS_BAUDRATE_TABLE	{9600, 19200, 38400, 57600, 115200}
 
 /*
  * Command definition
@@ -103,12 +102,14 @@
 #define CONFIG_BOOTP_DNS
 
 #define CONFIG_CMD_NAND
+#define CONFIG_CMD_CACHE
 
 #define CONFIG_CMD_I2C
 #define CONFIG_CMD_SPI
 #define CONFIG_CMD_MII
 #define CONFIG_CMD_NET
 #define CONFIG_NET_RETRY_COUNT	100
+#define CONFIG_CMD_DATE
 
 #define CONFIG_BOOTDELAY	3
 
@@ -122,7 +123,6 @@
 #define CONFIG_SMC911X_BASE CS5_BASE_ADDR
 
 #define CONFIG_HAS_ETH1
-#define CONFIG_NET_MULTI
 #define CONFIG_ETHPRIME
 
 /*
@@ -144,7 +144,6 @@
 #define CONFIG_SYS_PROMPT	"MX35 U-Boot > "
 #define CONFIG_CMDLINE_EDITING
 #define CONFIG_SYS_HUSH_PARSER	/* Use the HUSH parser */
-#define	CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 
 #define CONFIG_AUTO_COMPLETE
 #define CONFIG_SYS_CBSIZE	256	/* Console I/O Buffer Size */
@@ -173,11 +172,11 @@
 /*
  * Physical Memory Map
  */
-#define CONFIG_NR_DRAM_BANKS	1
+#define CONFIG_NR_DRAM_BANKS	2
 #define PHYS_SDRAM_1		CSD0_BASE_ADDR
 #define PHYS_SDRAM_1_SIZE	(128 * 1024 * 1024)
-#define iomem_valid_addr(addr, size) \
-	(addr >= PHYS_SDRAM_1 && addr <= (PHYS_SDRAM_1 + PHYS_SDRAM_1_SIZE))
+#define PHYS_SDRAM_2		CSD1_BASE_ADDR
+#define PHYS_SDRAM_2_SIZE	(128 * 1024 * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE		CSD0_BASE_ADDR
 #define CONFIG_SYS_INIT_RAM_ADDR	(IRAM_BASE_ADDR + 0x10000)

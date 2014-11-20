@@ -94,16 +94,13 @@ static char * evalstr(char *s)
 
 static int stringcomp(char *s, char *t, int op)
 {
-	int n, p;
+	int p;
 	char *l, *r;
 
 	l = evalstr(s);
 	r = evalstr(t);
 
-	/* we'll do a compare based on the length of the shortest string */
-	n = min(strlen(l), strlen(r));
-
-	p = strncmp(l, r, n);
+	p = strcmp(l, r);
 	switch (op) {
 	case EQ: return (p == 0);
 	case NE: return (p != 0);
@@ -164,7 +161,7 @@ int do_itest ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[] )
 
 	/* Validate arguments */
 	if ((argc != 4))
-		return cmd_usage(cmdtp);
+		return CMD_RET_USAGE;
 
 	/* Check for a data width specification.
 	 * Defaults to long (4) if no specification.
