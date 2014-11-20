@@ -27,11 +27,15 @@
 #include <asm/arch/adc.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/mmc.h>
+#include <pmic.h>
+#include <usb/s3c_udc.h>
+#include <asm/arch/cpu.h>
+#include <max8998_pmic.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
-struct s5pc210_gpio_part1 *gpio1;
-struct s5pc210_gpio_part2 *gpio2;
+struct exynos4_gpio_part1 *gpio1;
+struct exynos4_gpio_part2 *gpio2;
 unsigned int board_rev;
 
 u32 get_board_rev(void)
@@ -48,11 +52,15 @@ static void check_hw_revision(void);
 
 int board_init(void)
 {
-	gpio1 = (struct s5pc210_gpio_part1 *) S5PC210_GPIO_PART1_BASE;
-	gpio2 = (struct s5pc210_gpio_part2 *) S5PC210_GPIO_PART2_BASE;
+	gpio1 = (struct exynos4_gpio_part1 *) EXYNOS4_GPIO_PART1_BASE;
+	gpio2 = (struct exynos4_gpio_part2 *) EXYNOS4_GPIO_PART2_BASE;
 
 	gd->bd->bi_arch_number = MACH_TYPE_UNIVERSAL_C210;
 	gd->bd->bi_boot_params = PHYS_SDRAM_1 + 0x100;
+
+#if defined(CONFIG_PMIC)
+	pmic_init();
+#endif
 
 	check_hw_revision();
 	printf("HW Revision:\t0x%x\n", board_rev);
@@ -101,9 +109,26 @@ static unsigned short get_adc_value(int channel)
 	return ret;
 }
 
+static int adc_power_control(int on)
+{
+	int ret;
+	struct pmic *p = get_pmic();
+
+	if (pmic_probe(p))
+		return -1;
+
+	ret = pmic_set_output(p,
+			      MAX8998_REG_ONOFF1,
+			      MAX8998_LDO4, !!on);
+
+	return ret;
+}
+
 static unsigned int get_hw_revision(void)
 {
 	int hwrev, mode0, mode1;
+
+	adc_power_control(1);
 
 	mode0 = get_adc_value(1);		/* HWREV_MODE0 */
 	mode1 = get_adc_value(2);		/* HWREV_MODE1 */
@@ -126,6 +151,8 @@ static unsigned int get_hw_revision(void)
 #undef IS_RANGE
 
 	debug("mode0: %d, mode1: %d, hwrev 0x%x\n", mode0, mode1, hwrev);
+
+	adc_power_control(0);
 
 	return hwrev;
 }
@@ -160,7 +187,7 @@ int board_mmc_init(bd_t *bis)
 		 * you should set it HIGH since it removes the inverter
 		 */
 		/* MASSMEMORY_EN: XMDMDATA_6: GPE3[6] */
-		gpio_direction_output(&gpio1->e3, 6, 0);
+		s5p_gpio_direction_output(&gpio1->e3, 6, 0);
 		break;
 	default:
 		/*
@@ -168,7 +195,7 @@ int board_mmc_init(bd_t *bis)
 		 * But set it as HIGH to ensure
 		 */
 		/* MASSMEMORY_EN: XMDMADDR_3: GPE1[3] */
-		gpio_direction_output(&gpio1->e1, 3, 1);
+		s5p_gpio_direction_output(&gpio1->e1, 3, 1);
 		break;
 	}
 
@@ -192,25 +219,25 @@ int board_mmc_init(bd_t *bis)
 		if (i == 2)
 			continue;
 		/* GPK0[0:6] special function 2 */
-		gpio_cfg_pin(&gpio2->k0, i, 0x2);
+		s5p_gpio_cfg_pin(&gpio2->k0, i, 0x2);
 		/* GPK0[0:6] pull disable */
-		gpio_set_pull(&gpio2->k0, i, GPIO_PULL_NONE);
+		s5p_gpio_set_pull(&gpio2->k0, i, GPIO_PULL_NONE);
 		/* GPK0[0:6] drv 4x */
-		gpio_set_drv(&gpio2->k0, i, GPIO_DRV_4X);
+		s5p_gpio_set_drv(&gpio2->k0, i, GPIO_DRV_4X);
 	}
 
 	for (i = 3; i < 7; i++) {
 		/* GPK1[3:6] special function 3 */
-		gpio_cfg_pin(&gpio2->k1, i, 0x3);
+		s5p_gpio_cfg_pin(&gpio2->k1, i, 0x3);
 		/* GPK1[3:6] pull disable */
-		gpio_set_pull(&gpio2->k1, i, GPIO_PULL_NONE);
+		s5p_gpio_set_pull(&gpio2->k1, i, GPIO_PULL_NONE);
 		/* GPK1[3:6] drv 4x */
-		gpio_set_drv(&gpio2->k1, i, GPIO_DRV_4X);
+		s5p_gpio_set_drv(&gpio2->k1, i, GPIO_DRV_4X);
 	}
 
 	/* T-flash detect */
-	gpio_cfg_pin(&gpio2->x3, 4, 0xf);
-	gpio_set_pull(&gpio2->x3, 4, GPIO_PULL_UP);
+	s5p_gpio_cfg_pin(&gpio2->x3, 4, 0xf);
+	s5p_gpio_set_pull(&gpio2->x3, 4, GPIO_PULL_UP);
 
 	/*
 	 * MMC device init
@@ -223,7 +250,7 @@ int board_mmc_init(bd_t *bis)
 	 * Check the T-flash  detect pin
 	 * GPX3[4] T-flash detect pin
 	 */
-	if (!gpio_get_value(&gpio2->x3, 4)) {
+	if (!s5p_gpio_get_value(&gpio2->x3, 4)) {
 		/*
 		 * SD card GPIO:
 		 * GPK2[0]	SD_2_CLK(2)
@@ -235,11 +262,11 @@ int board_mmc_init(bd_t *bis)
 			if (i == 2)
 				continue;
 			/* GPK2[0:6] special function 2 */
-			gpio_cfg_pin(&gpio2->k2, i, 0x2);
+			s5p_gpio_cfg_pin(&gpio2->k2, i, 0x2);
 			/* GPK2[0:6] pull disable */
-			gpio_set_pull(&gpio2->k2, i, GPIO_PULL_NONE);
+			s5p_gpio_set_pull(&gpio2->k2, i, GPIO_PULL_NONE);
 			/* GPK2[0:6] drv 4x */
-			gpio_set_drv(&gpio2->k2, i, GPIO_DRV_4X);
+			s5p_gpio_set_drv(&gpio2->k2, i, GPIO_DRV_4X);
 		}
 		err = s5p_mmc_init(2, 4);
 	}
@@ -247,4 +274,49 @@ int board_mmc_init(bd_t *bis)
 	return err;
 
 }
+#endif
+
+#ifdef CONFIG_USB_GADGET
+static int s5pc210_phy_control(int on)
+{
+	int ret = 0;
+	struct pmic *p = get_pmic();
+
+	if (pmic_probe(p))
+		return -1;
+
+	if (on) {
+		ret |= pmic_set_output(p,
+				       MAX8998_REG_BUCK_ACTIVE_DISCHARGE3,
+				       MAX8998_SAFEOUT1, LDO_ON);
+		ret |= pmic_set_output(p, MAX8998_REG_ONOFF1,
+				      MAX8998_LDO3, LDO_ON);
+		ret |= pmic_set_output(p, MAX8998_REG_ONOFF2,
+				      MAX8998_LDO8, LDO_ON);
+
+	} else {
+		ret |= pmic_set_output(p, MAX8998_REG_ONOFF2,
+				      MAX8998_LDO8, LDO_OFF);
+		ret |= pmic_set_output(p, MAX8998_REG_ONOFF1,
+				      MAX8998_LDO3, LDO_OFF);
+		ret |= pmic_set_output(p,
+				       MAX8998_REG_BUCK_ACTIVE_DISCHARGE3,
+				       MAX8998_SAFEOUT1, LDO_OFF);
+	}
+
+	if (ret) {
+		puts("MAX8998 LDO setting error!\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+struct s3c_plat_otg_data s5pc210_otg_data = {
+	.phy_control = s5pc210_phy_control,
+	.regs_phy = EXYNOS4_USBPHY_BASE,
+	.regs_otg = EXYNOS4_USBOTG_BASE,
+	.usb_phy_ctrl = EXYNOS4_USBPHY_CONTROL,
+	.usb_flags = PHY0_SLEEP,
+};
 #endif

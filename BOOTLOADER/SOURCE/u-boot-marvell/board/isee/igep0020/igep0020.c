@@ -24,11 +24,12 @@
 #include <netdev.h>
 #include <twl4030.h>
 #include <asm/io.h>
-#include <asm/arch/gpio.h>
+#include <asm/gpio.h>
 #include <asm/arch/mem.h>
 #include <asm/arch/mmc_host_def.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/arch/omap_gpmc.h>
 #include <asm/mach-types.h>
 #include "igep0020.h"
 
@@ -51,8 +52,6 @@ static const u32 gpmc_lan_config[] = {
 int board_init(void)
 {
 	gpmc_init(); /* in SRAM or SDRAM, finish GPMC */
-	/* board id for Linux */
-	gd->bd->bi_arch_number = MACH_TYPE_IGEP0020;
 	/* boot param addr */
 	gd->bd->bi_boot_params = (OMAP34XX_SDRC_CS0 + 0x100);
 
@@ -81,13 +80,13 @@ static void setup_net_chip(void)
 		&ctrl_base->gpmc_nadv_ale);
 
 	/* Make GPIO 64 as output pin and send a magic pulse through it */
-	if (!omap_request_gpio(64)) {
-		omap_set_gpio_direction(64, 0);
-		omap_set_gpio_dataout(64, 1);
+	if (!gpio_request(64, "")) {
+		gpio_direction_output(64, 0);
+		gpio_set_value(64, 1);
 		udelay(1);
-		omap_set_gpio_dataout(64, 0);
+		gpio_set_value(64, 0);
 		udelay(1);
-		omap_set_gpio_dataout(64, 1);
+		gpio_set_value(64, 1);
 	}
 }
 #endif
@@ -95,7 +94,7 @@ static void setup_net_chip(void)
 #ifdef CONFIG_GENERIC_MMC
 int board_mmc_init(bd_t *bis)
 {
-	omap_mmc_init(0);
+	omap_mmc_init(0, 0, 0);
 	return 0;
 }
 #endif

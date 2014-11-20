@@ -143,8 +143,6 @@ void board_init (void)
 	WATCHDOG_RESET ();
 	env_relocate();
 
-	bd->bi_ip_addr = getenv_IPaddr ("ipaddr");
-
 	WATCHDOG_RESET ();
 	stdio_init();
 	jumptable_init();
@@ -158,9 +156,7 @@ void board_init (void)
 #endif
 
 #if defined(CONFIG_CMD_NET)
-#if defined(CONFIG_NET_MULTI)
 	puts ("Net:   ");
-#endif
 	eth_initialize (bd);
 #endif
 

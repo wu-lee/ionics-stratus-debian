@@ -24,6 +24,8 @@ void fsl_ddr_set_memctl_regs(const fsl_ddr_cfg_regs_t *regs,
 #ifdef CONFIG_SYS_FSL_ERRATUM_DDR111_DDR134
 	volatile ccsr_local_ecm_t *ecm = (void *)CONFIG_SYS_MPC85xx_ECM_ADDR;
 	u32 total_gb_size_per_controller;
+	unsigned int csn_bnds_backup = 0, cs_sa, cs_ea, *csn_bnds_t;
+	int csn = -1;
 #endif
 
 	switch (ctrl_num) {
@@ -40,6 +42,22 @@ void fsl_ddr_set_memctl_regs(const fsl_ddr_cfg_regs_t *regs,
 
 	out_be32(&ddr->eor, regs->ddr_eor);
 
+#ifdef CONFIG_SYS_FSL_ERRATUM_DDR111_DDR134
+	for (i = 0; i < CONFIG_CHIP_SELECTS_PER_CTRL; i++) {
+		cs_sa = (regs->cs[i].bnds >> 16) & 0xfff;
+		cs_ea = regs->cs[i].bnds & 0xfff;
+		if ((cs_sa <= 0xff) && (cs_ea >= 0xff)) {
+			csn = i;
+			csn_bnds_backup = regs->cs[i].bnds;
+			csn_bnds_t = (unsigned int *) &regs->cs[i].bnds;
+			*csn_bnds_t = regs->cs[i].bnds ^ 0x0F000F00;
+			debug("Found cs%d_bns (0x%08x) covering 0xff000000, "
+				"change it to 0x%x\n",
+				csn, csn_bnds_backup, regs->cs[i].bnds);
+			break;
+		}
+	}
+#endif
 	for (i = 0; i < CONFIG_CHIP_SELECTS_PER_CTRL; i++) {
 		if (i == 0) {
 			out_be32(&ddr->cs0_bnds, regs->cs[i].bnds);
@@ -96,6 +114,11 @@ void fsl_ddr_set_memctl_regs(const fsl_ddr_cfg_regs_t *regs,
 	out_be32(&ddr->err_int_en, regs->err_int_en);
 	for (i = 0; i < 32; i++)
 		out_be32(&ddr->debug[i], regs->debug[i]);
+
+#ifdef CONFIG_SYS_FSL_ERRATUM_DDR_A003474
+	out_be32(&ddr->debug[12], 0x00000015);
+	out_be32(&ddr->debug[21], 0x24000000);
+#endif /* CONFIG_SYS_FSL_ERRATUM_DDR_A003474 */
 
 	/* Set, but do not enable the memory */
 	temp_sdram_cfg = regs->ddr_sdram_cfg;
@@ -308,5 +331,28 @@ void fsl_ddr_set_memctl_regs(const fsl_ddr_cfg_regs_t *regs,
 	/* 10. Clear EEBACR[3] */
 	clrbits_be32(&ecm->eebacr, 10000000);
 	debug("Clearing EEBACR[3] to 0x%08x\n", in_be32(&ecm->eebacr));
+
+	if (csn != -1) {
+		csn_bnds_t = (unsigned int *) &regs->cs[csn].bnds;
+		*csn_bnds_t = csn_bnds_backup;
+		debug("Change cs%d_bnds back to 0x%08x\n",
+			csn, regs->cs[csn].bnds);
+		setbits_be32(&ddr->sdram_cfg, 0x2);	/* MEM_HALT */
+		switch (csn) {
+		case 0:
+			out_be32(&ddr->cs0_bnds, regs->cs[csn].bnds);
+			break;
+		case 1:
+			out_be32(&ddr->cs1_bnds, regs->cs[csn].bnds);
+			break;
+		case 2:
+			out_be32(&ddr->cs2_bnds, regs->cs[csn].bnds);
+			break;
+		case 3:
+			out_be32(&ddr->cs3_bnds, regs->cs[csn].bnds);
+			break;
+		}
+		clrbits_be32(&ddr->sdram_cfg, 0x2);
+	}
 #endif /* CONFIG_SYS_FSL_ERRATUM_DDR111_DDR134 */
 }

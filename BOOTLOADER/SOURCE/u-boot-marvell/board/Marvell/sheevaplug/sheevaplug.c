@@ -24,6 +24,7 @@
 
 #include <common.h>
 #include <miiphy.h>
+#include <asm/arch/cpu.h>
 #include <asm/arch/kirkwood.h>
 #include <asm/arch/mpp.h>
 #include "sheevaplug.h"
@@ -37,15 +38,9 @@ int board_early_init_f(void)
 	 * There are maximum 64 gpios controlled through 2 sets of registers
 	 * the  below configuration configures mainly initial LED status
 	 */
-	//kw_config_gpio(SHEEVAPLUG_OE_VAL_LOW,
-			//SHEEVAPLUG_OE_VAL_HIGH,
-			//SHEEVAPLUG_OE_LOW, SHEEVAPLUG_OE_HIGH);
-
-        /* Initial GPIO configuration for IONICS board */
-	kw_config_gpio( 0xffdfffff,
-			0xffffee6e,
-			0x00000000, 
-                        0x00000000 );
+	kw_config_gpio(SHEEVAPLUG_OE_VAL_LOW,
+			SHEEVAPLUG_OE_VAL_HIGH,
+			SHEEVAPLUG_OE_LOW, SHEEVAPLUG_OE_HIGH);
 
 	/* Multi-Purpose Pins Functionality configuration */
 	u32 kwmpp_config[] = {
@@ -101,7 +96,7 @@ int board_early_init_f(void)
 		MPP49_GPIO,
 		0
 	};
-	kirkwood_mpp_conf(kwmpp_config);
+	kirkwood_mpp_conf(kwmpp_config, NULL);
 	return 0;
 }
 
